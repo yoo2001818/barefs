@@ -24,8 +24,7 @@ describe('MemoryDiskDriver', () => {
   it('should throw an error if overflown', async () => {
     let payload = makeDataPayload(0xdeadcafe, 8198);
     await driver.write(13, payload);
-    await expect(driver.read(10000, 4)).rejects.toEqual({
-      error: 'Memory disk out of bounds',
-    });
+    await expect(driver.read(10000, 4)).rejects.toEqual(
+      new Error('Memory disk out of bounds'));
   });
 });
