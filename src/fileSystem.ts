@@ -9,10 +9,10 @@ export default class FileSystem {
   metadata: any;
   inodeBlockList: File;
   blockBitmap: File;
-  FileSystem(driver: DiskDriver) {
-
+  FileSystem(diskDriver: DiskDriver) {
+    this.diskDriver = diskDriver;
   }
-  static async mkfs(driver: DiskDriver): Promise<FileSystem> {
+  static async mkfs(diskDriver: DiskDriver): Promise<FileSystem> {
     // Create new metadata and write inode block list / block bitmap
   }
   async getFreeBlockId(size: number = 1): Promise<number> {

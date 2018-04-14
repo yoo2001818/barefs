@@ -9,6 +9,9 @@ export default class File {
   get length(): number {
     return 50;
   }
+  getINodeAddr(position: number): any {
+    
+  }
   async read(
     position: number, size: number, output?: Uint8Array,
   ): Promise<Uint8Array> {
@@ -17,5 +20,8 @@ export default class File {
   async write(
     position: number, input: Uint8Array, size?: number,
   ): Promise<void> {
+  }
+  async truncate(size: number): Promise<void> {
+
   }
 }
