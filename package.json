@@ -29,5 +29,8 @@
     "tslint": "^5.9.1",
     "tslint-config-standard": "^7.0.0",
     "typescript": "^2.8.1"
+  },
+  "dependencies": {
+    "bossam": "^1.3.0"
   }
 }
