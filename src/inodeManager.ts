@@ -1,5 +1,5 @@
 import File from './file';
-import INode from './inode';
+import INode, { encode, decode } from './inode';
 import FileSystem from './fileSystem';
 
 export type BlockType = number;
@@ -14,14 +14,19 @@ export default class INodeManager {
   }
 
   async read(id: number): Promise<INode> {
-    return null;
+    // TODO Get offset from block list!!!
+    return decode(id, await this.fs.diskDriver.read(id * 128, 128));
   }
 
   async write(id: number, inode: INode): Promise<void> {
-
+    // TODO Get offset from block list!!!
+    // Also, if the block is full, allocate new block
+    return this.fs.diskDriver.write(id * 128, encode(inode));
   }
 
   async next(): Promise<INode> {
-    return null;
+    // TODO Since all blocks are placed on the bitmap, get the first inode block
+    // with empty node.
+    return;
   }
 }

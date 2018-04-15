@@ -10,8 +10,8 @@ const namespace = bossam(`
   struct Metadata = Padded<{
     0xAB531B98: u32,
     version: u32,
-    bitmapId: u64;
-    blockListId: u64;
+    bitmapId: u64,
+    blockListId: u64,
   }, 128>;
 `);
 
