@@ -2,7 +2,7 @@ import bossam from 'bossam';
 
 export default interface INode {
   id: number;
-  size: number;
+  length: number;
   pointers: number[];
   single: number;
   double: number;
@@ -11,7 +11,7 @@ export default interface INode {
 
 const namespace = bossam(`
   struct INode = Padded<{
-    size: u64,
+    length: u64,
     pointers: [u64; 12],
     single: u64,
     double: u64,
