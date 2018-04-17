@@ -4,18 +4,14 @@ export default interface INode {
   id: number;
   length: number;
   pointers: number[];
-  single: number;
-  double: number;
-  triple: number;
+  jumps: number[];
 }
 
 const namespace = bossam(`
   struct INode = Padded<{
     length: u64,
     pointers: [u64; 12],
-    single: u64,
-    double: u64,
-    triple: u64,
+    jumps: [u64; 3],
   }, 128>;
 `);
 

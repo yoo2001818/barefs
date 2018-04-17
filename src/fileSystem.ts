@@ -28,6 +28,18 @@ export default class FileSystem {
     // Write metadata to disk
     await this.diskDriver.write(0, Metadata.encode(this.metadata));
   }
+  async readBlock(
+    id: number, position?: number, size?: number,
+  ): Promise<Uint8Array> {
+    let address = id * FileSystem.BLOCK_SIZE + (position || 0);
+    return this.diskDriver.read(address, size || FileSystem.BLOCK_SIZE);
+  }
+  async writeBlock(
+    id: number, position: number, buffer: Uint8Array,
+  ): Promise<void> {
+    let address = id * FileSystem.BLOCK_SIZE + (position || 0);
+    return this.diskDriver.write(address, buffer);
+  }
   async createFile(): Promise<File> {
     // Get free inode and wrap file
   }

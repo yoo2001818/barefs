@@ -1,11 +1,11 @@
 import INode from './inode';
 import FileSystem from './fileSystem';
 
-type INodePointer = number | number[];
+type BlockPointer = number | number[];
 
 const BLOCK_ENTRIES = FileSystem.BLOCK_SIZE / 4;
 
-function getINodeAddress(address: number): INodePointer {
+function getINodeAddress(address: number): BlockPointer {
   // Get initial inode address for the data address.
   let blockId = Math.floor(address / FileSystem.BLOCK_SIZE);
   if (blockId < 12) return blockId;
@@ -44,13 +44,24 @@ export default class File {
   async read(
     position: number, size: number, output?: Uint8Array,
   ): Promise<Uint8Array> {
-    let address: INodePointer = getINodeAddress(position);
+    let address: BlockPointer = getINodeAddress(position);
     if (typeof address === 'number') {
-      return this.fs.diskDriver.read(
-        this.inode.pointers[address] * FileSystem.BLOCK_SIZE,
-        FileSystem.BLOCK_SIZE);
+      return this.fs.readBlock(this.inode.pointers[address]);
     } else {
       // Descend to the positioning node..
+      let blocks: DataView[] = [];
+      blocks[0] = new DataView((await this.fs.readBlock(
+        this.inode.jumps[address.length - 1])).buffer);
+      for (let i = 0; i < address.length; ++i) {
+        // TODO getuint64
+        let blockId = blocks[i].getUint32(address[i] * 4);
+        if (i === address.length - 1) {
+          return this.fs.readBlock(blockId);
+        } else {
+          blocks[i + 1] = new DataView(
+            (await this.fs.readBlock(blockId)).buffer);
+        }
+      }
     }
   }
   async write(
