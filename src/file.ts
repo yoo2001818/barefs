@@ -32,11 +32,13 @@ function getINodeAddress(address: number): number[] {
 async function traverseFileNodes(file: File,
   startBlock: number, endBlock: number,
   callback: (blockId: number) => Promise<number | void>,
-): any {
+  shouldWrite: boolean,
+): Promise<void> {
   let position = startBlock;
   let stack: {
     type: string, depth?: number,
     offset: number, remainder?: number, block?: DataView,
+    blockId?: number,
   }[] = [];
   while (position < endBlock) {
     if (stack.length === 0) {
@@ -50,6 +52,7 @@ async function traverseFileNodes(file: File,
           depth: 0,
           offset: pos % BLOCK_ENTRIES,
           remainder: 0,
+          blockId: file.inode.jumps[0],
           block: new DataView(
             (await file.fs.readBlock(file.inode.jumps[0])).buffer), 
         });
@@ -61,6 +64,7 @@ async function traverseFileNodes(file: File,
           depth: 1,
           offset: pos / BLOCK_ENTRIES | 0,
           remainder: pos % BLOCK_ENTRIES,
+          blockId: file.inode.jumps[1],
           block: new DataView(
             (await file.fs.readBlock(file.inode.jumps[1])).buffer), 
         });
@@ -72,6 +76,7 @@ async function traverseFileNodes(file: File,
           depth: 2,
           offset: pos / BLOCK_ENTRIES_DOUBLE | 0,
           remainder: pos % BLOCK_ENTRIES_DOUBLE,
+          blockId: file.inode.jumps[2],
           block: new DataView(
             (await file.fs.readBlock(file.inode.jumps[2])).buffer), 
         });
@@ -85,19 +90,29 @@ async function traverseFileNodes(file: File,
       if (top.offset >= 12) {
         stack.pop();
       }
-    } else if (top.type === 'indirect') {
+    } else if (top.type === 'indirect') 
+      if (top.offset > BLOCK_ENTRIES) {
+        stack.pop();
+        continue;
+      }
       if (top.depth === 0) {
         await callback(top.block.getUint32(top.offset));
+        top.offset ++;
         position ++;
       } else {
+        let blockId = top.block.getUint32(top.offset);
         stack.push({
           type: 'indirect',
           depth: top.depth - 1,
-          offset: top.remainder / BLOCK_ENTRIES | 0,
-          remainder: top.remainder % BLOCK_ENTRIES,
+          offset: top.depth === 1 ? top.remainder
+            : top.remainder / INDIRECT_SIZES[top.depth - 1] | 0,
+          remainder: top.depth === 1 ? 0
+            : top.remainder % INDIRECT_SIZES[top.depth - 1],
           block: new DataView(
-            (await file.fs.readBlock(top.block.getFloat32(top.offset)).buffer), 
-        })
+            (await file.fs.readBlock(blockId)).buffer), 
+        });
+        top.offset ++;
+        top.remainder = 0;
       }
       top.offset ++;
       if (top.offset >= INDIRECT_SIZES[top.depth]) {
