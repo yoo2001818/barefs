@@ -7,28 +7,6 @@ const BLOCK_ENTRIES_TRIPLE = BLOCK_ENTRIES_DOUBLE * BLOCK_ENTRIES;
 const INDIRECT_SIZES = [BLOCK_ENTRIES, BLOCK_ENTRIES_DOUBLE,
    BLOCK_ENTRIES_TRIPLE];
 
-function getINodeAddress(address: number): number[] {
-  // Get initial inode address for the data address.
-  let blockId = Math.floor(address / FileSystem.BLOCK_SIZE);
-  if (blockId < 12) return [0, blockId];
-  blockId -= 12;
-  if (blockId < BLOCK_ENTRIES) return [1, blockId];
-  blockId -= BLOCK_ENTRIES;
-  if (blockId < BLOCK_ENTRIES * BLOCK_ENTRIES) {
-    return [2, (blockId / BLOCK_ENTRIES) | 0, blockId % BLOCK_ENTRIES];
-  }
-  blockId -= BLOCK_ENTRIES * BLOCK_ENTRIES;
-  if (blockId < BLOCK_ENTRIES * BLOCK_ENTRIES * BLOCK_ENTRIES) {
-    return [
-      3,
-      (blockId / BLOCK_ENTRIES / BLOCK_ENTRIES) | 0,
-      ((blockId / BLOCK_ENTRIES) | 0) % BLOCK_ENTRIES,
-      blockId % BLOCK_ENTRIES,
-    ];
-  }
-  throw new Error('The file cannot be addressed since it is too large.');
-}
-
 async function resolveNode(file: File, block: number): Promise<number> {
   if (block !== 0) return block;
   let nextId = await file.fs.blockManager.next();
@@ -51,60 +29,31 @@ async function traverseFileNodes(file: File,
     if (stack.length === 0) {
       let pos = position;
       // Descend to the right node...
-      if (position < 12) stack.push({ type: 'direct', offset: position });
+      if (pos < 12) stack.push({ type: 'direct', offset: position });
       pos -= 12;
-      if (position < BLOCK_ENTRIES) {
-        let blockId = await resolveNode(file, file.inode.jumps[0]);
-        if (blockId !== file.inode.jumps[0]) {
-          file.inode.jumps[0] = blockId;
-          file.inode.dirty = true;
+      for (let i = 0; i < INDIRECT_SIZES.length; ++i) {
+        let size = INDIRECT_SIZES[i];
+        if (pos < size) {
+          let blockId = await resolveNode(file, file.inode.jumps[i]);
+          if (blockId !== file.inode.jumps[i]) {
+            file.inode.jumps[i] = blockId;
+            file.inode.dirty = true;
+          }
+          stack.push({
+            type: 'indirect',
+            depth: i,
+            offset: i === 0 ? pos
+              : pos / INDIRECT_SIZES[i - 1] | 0,
+            remainder: i === 0 ? 0
+              : pos % INDIRECT_SIZES[i - 1],
+            blockId,
+            block: new DataView(
+              (await file.fs.readBlock(blockId)).buffer), 
+            dirty: false,
+          });
+          break;
         }
-        stack.push({
-          type: 'indirect',
-          depth: 0,
-          offset: pos % BLOCK_ENTRIES,
-          remainder: 0,
-          blockId,
-          block: new DataView(
-            (await file.fs.readBlock(blockId)).buffer), 
-          dirty: false,
-        });
-      }
-      pos -= BLOCK_ENTRIES;
-      if (position < BLOCK_ENTRIES_DOUBLE) {
-        let blockId = await resolveNode(file, file.inode.jumps[1]);
-        if (blockId !== file.inode.jumps[1]) {
-          file.inode.jumps[1] = blockId;
-          file.inode.dirty = true;
-        }
-        stack.push({
-          type: 'indirect',
-          depth: 1,
-          offset: pos / BLOCK_ENTRIES | 0,
-          remainder: pos % BLOCK_ENTRIES,
-          blockId,
-          block: new DataView(
-            (await file.fs.readBlock(blockId)).buffer), 
-          dirty: false,
-        });
-      }
-      pos -= BLOCK_ENTRIES_DOUBLE;
-      if (position < BLOCK_ENTRIES_TRIPLE) {
-        let blockId = await resolveNode(file, file.inode.jumps[2]);
-        if (blockId !== file.inode.jumps[2]) {
-          file.inode.jumps[2] = blockId;
-          file.inode.dirty = true;
-        }
-        stack.push({
-          type: 'indirect',
-          depth: 2,
-          offset: pos / BLOCK_ENTRIES_DOUBLE | 0,
-          remainder: pos % BLOCK_ENTRIES_DOUBLE,
-          blockId,
-          block: new DataView(
-            (await file.fs.readBlock(blockId)).buffer), 
-          dirty: false,
-        });
+        pos -= size;
       }
     }
     let top = stack[stack.length - 1];
