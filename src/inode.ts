@@ -5,6 +5,7 @@ export default interface INode {
   length: number;
   pointers: number[];
   jumps: number[];
+  dirty: boolean;
 }
 
 const namespace = bossam(`
@@ -22,5 +23,6 @@ export function encode(inode: INode): Uint8Array {
 export function decode(id: number, buffer: Uint8Array): INode {
   let result = namespace['INode'].decode<INode>(buffer);
   result.id = id;
+  resule.dirty = false;
   return result;
 }

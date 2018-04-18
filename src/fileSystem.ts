@@ -2,12 +2,16 @@ import INode from './inode';
 import File from './file';
 import DiskDriver from './diskDriver/interface';
 import MetadataType, * as Metadata from './metadata';
+import BlockManager from './blockManager';
+import INodeManager from './inodeManager';
 
 export default class FileSystem {
   static BLOCK_SIZE = 4096;
   static INODE_SIZE = 128;
   diskDriver: DiskDriver;
   metadata: MetadataType;
+  blockManager: BlockManager;
+  inodeManager: INodeManager;
   FileSystem(diskDriver: DiskDriver) {
     this.diskDriver = diskDriver;
   }
