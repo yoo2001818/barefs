@@ -57,14 +57,18 @@ async function traverseFileNodes(file: File,
     }
     let top = stack[stack.length - 1];
     if (top.type === 'direct') {
-      await callback(position, file.inode.pointers[top.offset]);
+      let newId = await callback(position, file.inode.pointers[top.offset]);
+      if (typeof newId === 'number') {
+        file.inode.pointers[top.offset] = newId;
+        file.inode.dirty = true;
+      }
       position ++;
       top.offset ++;
       if (top.offset >= 12) {
         stack.pop();
       }
     } else if (top.type === 'indirect') {
-      if (top.offset > BLOCK_ENTRIES) {
+      if (top.offset >= BLOCK_ENTRIES) {
         if (top.dirty) {
           await file.fs.writeBlock(top.blockId, 0,
             new Uint8Array(top.block.buffer));
@@ -73,7 +77,12 @@ async function traverseFileNodes(file: File,
         continue;
       }
       if (top.depth === 0) {
-        await callback(position, top.block.getUint32(top.offset * 4));
+        let blockId = top.block.getUint32(top.offset * 4);
+        let newId = await callback(position, blockId);
+        if (typeof newId === 'number') {
+          top.dirty = true;
+          top.block.setUint32(top.offset * 4, newId);
+        }
         top.offset ++;
         position ++;
       } else {
@@ -98,6 +107,13 @@ async function traverseFileNodes(file: File,
         top.remainder = 0;
       }
       top.offset ++;
+    }
+  }
+  if (stack.length > 0) {
+    let top = stack[stack.length - 1];
+    if (top.type === 'indirect' && top.dirty) {
+      await file.fs.writeBlock(top.blockId, 0,
+        new Uint8Array(top.block.buffer));
     }
   }
 }
@@ -133,18 +149,40 @@ export default class File {
           copySize = FileSystem.BLOCK_SIZE - startPos;
         }
         if (position === endBlock) {
-          copySize = size - FileSystem.BLOCK_SIZE * (endBlock - startBlock);
+          copySize = size - FileSystem.BLOCK_SIZE * (position - startBlock);
         }
-        let block = await this.fs.readBlock(blockId);
-        buffer.set(block.subarray(startPos, startPos + copySize),
-          (position - startBlock) * FileSystem.BLOCK_SIZE);
+        let block = await this.fs.readBlock(blockId, startPos, copySize);
+        buffer.set(block, (position - startBlock) * FileSystem.BLOCK_SIZE);
       },
     );
     return buffer;
   }
   async write(
-    offset: number, input: Uint8Array, size?: number,
+    offset: number, input: Uint8Array,
   ): Promise<void> {
+    let size = input.length;
+    let startBlock = Math.floor(offset / FileSystem.BLOCK_SIZE);
+    let endBlock = Math.floor((offset + size) / FileSystem.BLOCK_SIZE);
+    let addr = 0;
+    await traverseFileNodes(this, startBlock, endBlock,
+      async (position: number, blockId: number) => {
+        let startPos = 0;
+        let copySize = FileSystem.BLOCK_SIZE;
+        if (position === startBlock) {
+          startPos = position - offset;
+          copySize = FileSystem.BLOCK_SIZE - startPos;
+        }
+        if (position === endBlock) {
+          copySize = size - FileSystem.BLOCK_SIZE * (position - startBlock);
+        }
+        let newId = blockId;
+        if (blockId === 0) newId = await this.fs.blockManager.next();
+        await this.fs.writeBlock(newId, startPos,
+          input.subarray(addr, addr + copySize));
+        addr = addr + copySize; 
+        if (blockId !== newId) return newId;
+      },
+    );
   }
   async truncate(size: number): Promise<void> {
 
