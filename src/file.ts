@@ -16,8 +16,7 @@ async function resolveNode(file: File, block: number): Promise<number> {
 
 async function traverseFileNodes(file: File,
   startBlock: number, endBlock: number,
-  callback: (blockId: number) => Promise<number | void>,
-  shouldWrite: boolean,
+  callback: (position: number, blockId: number) => Promise<number | void>,
 ): Promise<void> {
   let position = startBlock;
   let stack: {
@@ -58,13 +57,13 @@ async function traverseFileNodes(file: File,
     }
     let top = stack[stack.length - 1];
     if (top.type === 'direct') {
-      await callback(file.inode.pointers[top.offset]);
+      await callback(position, file.inode.pointers[top.offset]);
       position ++;
       top.offset ++;
       if (top.offset >= 12) {
         stack.pop();
       }
-    } else if (top.type === 'indirect') 
+    } else if (top.type === 'indirect') {
       if (top.offset > BLOCK_ENTRIES) {
         if (top.dirty) {
           await file.fs.writeBlock(top.blockId, 0,
@@ -74,7 +73,7 @@ async function traverseFileNodes(file: File,
         continue;
       }
       if (top.depth === 0) {
-        await callback(top.block.getUint32(top.offset * 4));
+        await callback(position, top.block.getUint32(top.offset * 4));
         top.offset ++;
         position ++;
       } else {
@@ -120,31 +119,31 @@ export default class File {
     return this.inode.length;
   }
   async read(
-    position: number, size: number, output?: Uint8Array,
+    offset: number, size: number, output?: Uint8Array,
   ): Promise<Uint8Array> {
-    let address: BlockPointer = getINodeAddress(position);
-    if (typeof address === 'number') {
-      return this.fs.readBlock(this.inode.pointers[address]);
-    } else {
-      // Descend to the positioning node..
-      let blocks: DataView[] = [];
-      blocks[0] = new DataView((await this.fs.readBlock(
-        this.inode.jumps[address.length - 1])).buffer);
-      for (let i = 0; i < address.length; ++i) {
-        // TODO getuint64
-        let tmpId = blocks[i].getUint32(address[i] * 4);
-        
-        if (i === address.length - 1) {
-          return this.fs.readBlock(blockId);
-        } else {
-          blocks[i + 1] = new DataView(
-            (await this.fs.readBlock(blockId)).buffer);
+    let startBlock = Math.floor(offset / FileSystem.BLOCK_SIZE);
+    let endBlock = Math.floor((offset + size) / FileSystem.BLOCK_SIZE);
+    let buffer = new Uint8Array(size);
+    await traverseFileNodes(this, startBlock, endBlock,
+      async (position: number, blockId: number) => {
+        let startPos = 0;
+        let copySize = FileSystem.BLOCK_SIZE;
+        if (position === startBlock) {
+          startPos = position - offset;
+          copySize = FileSystem.BLOCK_SIZE - startPos;
         }
-      }
-    }
+        if (position === endBlock) {
+          copySize = size - FileSystem.BLOCK_SIZE * (endBlock - startBlock);
+        }
+        let block = await this.fs.readBlock(blockId);
+        buffer.set(block.subarray(startPos, startPos + copySize),
+          (position - startBlock) * FileSystem.BLOCK_SIZE);
+      },
+    );
+    return buffer;
   }
   async write(
-    position: number, input: Uint8Array, size?: number,
+    offset: number, input: Uint8Array, size?: number,
   ): Promise<void> {
   }
   async truncate(size: number): Promise<void> {
