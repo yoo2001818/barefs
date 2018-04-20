@@ -7,8 +7,11 @@ export default class BlockManager {
   fs: FileSystem;
   bitmapFile: File;
 
-  constructor(fs: FileSystem, bitmapFile: File) {
+  constructor(fs: FileSystem) {
     this.fs = fs;
+  }
+
+  init(bitmapFile: File): void {
     this.bitmapFile = bitmapFile;
   }
 

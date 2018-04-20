@@ -23,6 +23,16 @@ export function encode(inode: INode): Uint8Array {
 export function decode(id: number, buffer: Uint8Array): INode {
   let result = namespace['INode'].decode<INode>(buffer);
   result.id = id;
-  resule.dirty = false;
+  result.dirty = false;
   return result;
+}
+
+export function createEmpty(): INode {
+  return {
+    id: 0,
+    length: 0,
+    pointers: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    jumps: [0, 0, 0],
+    dirty: true,
+  };
 }

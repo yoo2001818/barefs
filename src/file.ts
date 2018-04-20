@@ -137,6 +137,9 @@ export default class File {
   async read(
     offset: number, size: number, output?: Uint8Array,
   ): Promise<Uint8Array> {
+    if (offset + size > this.inode.length) {
+      throw new Error('Offset out of bounds');
+    }
     let startBlock = Math.floor(offset / FileSystem.BLOCK_SIZE);
     let endBlock = Math.floor((offset + size) / FileSystem.BLOCK_SIZE);
     let buffer = new Uint8Array(size);
@@ -183,6 +186,13 @@ export default class File {
         if (blockId !== newId) return newId;
       },
     );
+    if (offset + input.length > this.inode.length) {
+      this.inode.length = offset + input.length;
+      this.inode.dirty = true;
+    }
+    if (this.inode.dirty) {
+      await this.fs.inodeManager.write(this.inode.id, this.inode);
+    }
   }
   async truncate(size: number): Promise<void> {
 

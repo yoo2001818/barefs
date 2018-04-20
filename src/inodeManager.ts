@@ -1,5 +1,5 @@
 import File from './file';
-import INode, { encode, decode } from './inode';
+import INode, { encode, decode, createEmpty } from './inode';
 import FileSystem from './fileSystem';
 
 export type BlockType = number;
@@ -8,8 +8,11 @@ export default class INodeManager {
   fs: FileSystem;
   blockListFile: File;
 
-  constructor(fs: FileSystem, blockListFile: File) {
+  constructor(fs: FileSystem) {
     this.fs = fs;
+  }
+
+  init(blockListFile: File): void {
     this.blockListFile = blockListFile;
   }
 
@@ -27,6 +30,6 @@ export default class INodeManager {
   async next(): Promise<INode> {
     // TODO Since all blocks are placed on the bitmap, get the first inode block
     // with empty node.
-    return;
+    return createEmpty();
   }
 }
