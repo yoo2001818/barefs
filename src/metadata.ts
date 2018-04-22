@@ -4,6 +4,7 @@ export default interface Metadata {
   version: number;
   bitmapId: number;
   blockListId: number;
+  rootId: number;
 }
 
 const namespace = bossam(`
@@ -12,6 +13,7 @@ const namespace = bossam(`
     version: u32,
     bitmapId: u64,
     blockListId: u64,
+    rootId: u64,
   }, 128>;
 `);
 

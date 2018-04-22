@@ -13,7 +13,7 @@ async function resolveNode(file: File, block: number): Promise<number> {
   if (block !== 0) return block;
   let nextId = await file.fs.blockManager.next();
   await file.fs.writeBlock(nextId, 0, new Uint8Array(4096));
-  await file.fs.blockManager.setType(nextId, 2);
+  await file.fs.blockManager.setType(nextId, 3);
   return nextId;
 }
 

@@ -25,6 +25,10 @@ describe('FileSystem', () => {
     let largeChunk = makeDataPayload(0x1919, 4192);
     await file.write(13, largeChunk);
     expect(file.length).toBe(13 + 4192);
+    let largeChunk2 = makeDataPayload(0x5353, 50000);
+    await file2.write(40, largeChunk2);
+    expect(file2.length).toBe(40 + 50000);
     expect(await file.read(13, 4192)).toEqual(largeChunk);
+    expect(await file2.read(40, 50000)).toEqual(largeChunk2);
   });
 });
