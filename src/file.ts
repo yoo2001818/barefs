@@ -2,7 +2,8 @@ import INode from './inode';
 import FileSystem from './fileSystem';
 import createDataView, { createUint8Array } from './util/dataView';
 
-const BLOCK_ENTRIES = FileSystem.BLOCK_SIZE / 4;
+// TODO handle constants properly
+const BLOCK_ENTRIES = 4096 / 4;
 const BLOCK_ENTRIES_DOUBLE = BLOCK_ENTRIES * BLOCK_ENTRIES;
 const BLOCK_ENTRIES_TRIPLE = BLOCK_ENTRIES_DOUBLE * BLOCK_ENTRIES;
 const INDIRECT_SIZES = [BLOCK_ENTRIES, BLOCK_ENTRIES_DOUBLE,
@@ -12,7 +13,7 @@ async function resolveNode(file: File, block: number): Promise<number> {
   if (block !== 0) return block;
   let nextId = await file.fs.blockManager.next();
   await file.fs.writeBlock(nextId, 0, new Uint8Array(4096));
-  await file.fs.blockManager.setType(nextId, 1);
+  await file.fs.blockManager.setType(nextId, 2);
   return nextId;
 }
 
@@ -30,7 +31,10 @@ async function traverseFileNodes(file: File,
     if (stack.length === 0) {
       let pos = position;
       // Descend to the right node...
-      if (pos < 12) stack.push({ type: 'direct', offset: position });
+      if (pos < 12) {
+        stack.push({ type: 'direct', offset: position });
+        continue;
+      }
       pos -= 12;
       for (let i = 0; i < INDIRECT_SIZES.length; ++i) {
         let size = INDIRECT_SIZES[i];
@@ -55,6 +59,7 @@ async function traverseFileNodes(file: File,
         }
         pos -= size;
       }
+      continue;
     }
     let top = stack[stack.length - 1];
     if (top.type === 'direct') {
@@ -139,17 +144,17 @@ export default class File {
       throw new Error('Offset out of bounds');
     }
     let startBlock = Math.floor(offset / FileSystem.BLOCK_SIZE);
-    let endBlock = Math.floor((offset + size) / FileSystem.BLOCK_SIZE);
+    let endBlock = Math.ceil((offset + size) / FileSystem.BLOCK_SIZE);
     let buffer = new Uint8Array(size);
     await traverseFileNodes(this, startBlock, endBlock,
       async (position: number, blockId: number) => {
         let startPos = 0;
         let copySize = FileSystem.BLOCK_SIZE;
         if (position === startBlock) {
-          startPos = position - offset;
+          startPos = position + offset;
           copySize = FileSystem.BLOCK_SIZE - startPos;
         }
-        if (position === endBlock) {
+        if (position === endBlock - 1) {
           copySize = size - FileSystem.BLOCK_SIZE * (position - startBlock);
         }
         let block = await this.fs.readBlock(blockId, startPos, copySize);
@@ -163,21 +168,24 @@ export default class File {
   ): Promise<void> {
     let size = input.length;
     let startBlock = Math.floor(offset / FileSystem.BLOCK_SIZE);
-    let endBlock = Math.floor((offset + size) / FileSystem.BLOCK_SIZE);
+    let endBlock = Math.ceil((offset + size) / FileSystem.BLOCK_SIZE);
     let addr = 0;
     await traverseFileNodes(this, startBlock, endBlock,
       async (position: number, blockId: number) => {
         let startPos = 0;
         let copySize = FileSystem.BLOCK_SIZE;
         if (position === startBlock) {
-          startPos = position - offset;
+          startPos = position + offset;
           copySize = FileSystem.BLOCK_SIZE - startPos;
         }
-        if (position === endBlock) {
+        if (position === endBlock - 1) {
           copySize = size - FileSystem.BLOCK_SIZE * (position - startBlock);
         }
         let newId = blockId;
-        if (blockId === 0) newId = await this.fs.blockManager.next();
+        if (blockId === 0) {
+          newId = await this.fs.blockManager.next();
+          await this.fs.blockManager.setType(newId, 2);
+        }
         await this.fs.writeBlock(newId, startPos,
           input.subarray(addr, addr + copySize));
         addr = addr + copySize; 

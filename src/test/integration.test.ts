@@ -1,5 +1,6 @@
 import MemoryDiskDriver from '../diskDriver/memory';
 import FileSystem from '../fileSystem';
+import byteArrayToHex from '../util/byteArrayToHex';
 
 describe('FileSystem', () => {
   it('should handle regular use case', async () => {
@@ -16,7 +17,9 @@ describe('FileSystem', () => {
     expect(file2.length).toBe(4);
     // This might be changed
     expect(file2.id).toBe(4);
-    expect(file.read(0, 13)).toEqual(Buffer.from('Hello, world!'));
-    expect(file2.read(0, 4)).toEqual(Buffer.from('Nope'));
+    expect(byteArrayToHex(await file.read(0, 13)))
+      .toEqual(byteArrayToHex(Buffer.from('Hello, world!')));
+    expect(byteArrayToHex(await file2.read(0, 4)))
+      .toEqual(byteArrayToHex(Buffer.from('Nope')));
   });
 });

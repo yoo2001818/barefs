@@ -1,12 +1,12 @@
 import File from './file';
 import INode, { encode, decode, createEmpty } from './inode';
 import FileSystem from './fileSystem';
-import createDataView from './util/dataView';
+import createDataView, { createUint8Array } from './util/dataView';
 
 export type BlockType = number;
 
-const INODE_COUNT = FileSystem.BLOCK_SIZE / FileSystem.INODE_SIZE;
-
+// TODO handle constants properly
+const INODE_COUNT = 4096 / 128;
 export default class INodeManager {
   fs: FileSystem;
   blockListFile: File;
@@ -18,6 +18,9 @@ export default class INodeManager {
     this.blockListFile = blockListFile;
   }
   async getBlockId(id: number): Promise<number> {
+    if (this.blockListFile == null || this.blockListFile.length === 0) {
+      return id;
+    }
     // Translate inode ID to block ID
     let blockPos = Math.floor(id / INODE_COUNT);
     return createDataView(
@@ -62,11 +65,20 @@ export default class INodeManager {
     inode.id = result;
     // Set bitset data
     let blockPos = Math.floor(inode.id / INODE_COUNT);
-    let bitsetView = createDataView(
-      await this.blockListFile.read(12 * blockPos + 8, 4))
-    let bitset = bitsetView.getUint32(0);
+    let bitsetView;
+    let bitset;
+    if (this.blockListFile.length > blockPos * 12) {
+      bitsetView = createDataView(
+        await this.blockListFile.read(12 * blockPos, 12))
+      bitset = bitsetView.getUint32(8);
+    } else {
+      bitsetView = createDataView(new Uint8Array(12));
+      bitset = 0;
+      await this.fs.setType(blockPos, 1);
+    }
     bitset |= 1 << (inode.id % INODE_COUNT);
-    bitsetView.setUint32(0, bitset);
+    bitsetView.setUint32(8, bitset);
+    await this.blockListFile.write(12 * blockPos, createUint8Array(bitsetView));
     return inode;
   }
 }

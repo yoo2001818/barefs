@@ -12,7 +12,8 @@ export default class FileSystem {
   metadata: Metadata;
   blockManager: BlockManager;
   inodeManager: INodeManager;
-  FileSystem(diskDriver: DiskDriver) {
+
+  constructor(diskDriver: DiskDriver) {
     this.diskDriver = diskDriver;
   }
   static async mkfs(diskDriver: DiskDriver): Promise<FileSystem> {
@@ -23,18 +24,32 @@ export default class FileSystem {
       blockListId: 2,
     };
     await diskDriver.write(0, MetadataUtil.encode(metadata));
-    // Populate empty 
-    await diskDriver.write(128, INodeUtil.encode(INodeUtil.createEmpty()));
-    await diskDriver.write(256, INodeUtil.encode(INodeUtil.createEmpty()));
+    // Populate bitmap node / file
+    let bitmapNode = INodeUtil.createEmpty();
+    bitmapNode.length = 3;
+    bitmapNode.pointers[0] = 1;
+    await diskDriver.write(128, INodeUtil.encode(bitmapNode));
+    let bitmapBlock = new Uint8Array(4096);
+    bitmapBlock.set([1, 2, 2]);
+    await diskDriver.write(4096, bitmapBlock);
+    // Populate block list node / file
+    let blockListNode = INodeUtil.createEmpty();
+    blockListNode.length = 12;
+    blockListNode.pointers[0] = 2;
+    await diskDriver.write(256, INodeUtil.encode(blockListNode));
+    let blockListBlock = new Uint8Array(4096);
+    blockListBlock.set([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7]);
+    await diskDriver.write(8192, blockListBlock);
+    return new FileSystem(diskDriver);
   }
   async init(): Promise<void> {
     // Read metadata and read inode / block bitmap to buffer
     this.metadata = MetadataUtil.decode(await this.diskDriver.read(0, 128));
-    this.inodeManager = new INodeManager(this);
     this.blockManager = new BlockManager(this);
+    this.inodeManager = new INodeManager(this);
 
-    this.inodeManager.init(await this.readFile(this.metadata.blockListId));
     this.blockManager.init(await this.readFile(this.metadata.bitmapId));
+    this.inodeManager.init(await this.readFile(this.metadata.blockListId));
   }
   async close(): Promise<void> { 
     // Write metadata to disk
