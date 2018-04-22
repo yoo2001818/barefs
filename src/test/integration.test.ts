@@ -1,6 +1,7 @@
 import MemoryDiskDriver from '../diskDriver/memory';
 import FileSystem from '../fileSystem';
 import byteArrayToHex from '../util/byteArrayToHex';
+import makeDataPayload from '../util/makeDataPayload';
 
 describe('FileSystem', () => {
   it('should handle regular use case', async () => {
@@ -21,5 +22,9 @@ describe('FileSystem', () => {
       .toEqual(byteArrayToHex(Buffer.from('Hello, world!')));
     expect(byteArrayToHex(await file2.read(0, 4)))
       .toEqual(byteArrayToHex(Buffer.from('Nope')));
+    let largeChunk = makeDataPayload(0x1919, 4192);
+    await file.write(13, largeChunk);
+    expect(file.length).toBe(13 + 4192);
+    expect(await file.read(13, 4192)).toEqual(largeChunk);
   });
 });

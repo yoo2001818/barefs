@@ -146,6 +146,7 @@ export default class File {
     let startBlock = Math.floor(offset / FileSystem.BLOCK_SIZE);
     let endBlock = Math.ceil((offset + size) / FileSystem.BLOCK_SIZE);
     let buffer = new Uint8Array(size);
+    let addr = 0;
     await traverseFileNodes(this, startBlock, endBlock,
       async (position: number, blockId: number) => {
         let startPos = 0;
@@ -155,10 +156,11 @@ export default class File {
           copySize = FileSystem.BLOCK_SIZE - startPos;
         }
         if (position === endBlock - 1) {
-          copySize = size - FileSystem.BLOCK_SIZE * (position - startBlock);
+          copySize = size - addr;
         }
         let block = await this.fs.readBlock(blockId, startPos, copySize);
-        buffer.set(block, (position - startBlock) * FileSystem.BLOCK_SIZE);
+        buffer.set(block, addr);
+        addr = addr + copySize; 
       },
     );
     return buffer;
@@ -179,7 +181,7 @@ export default class File {
           copySize = FileSystem.BLOCK_SIZE - startPos;
         }
         if (position === endBlock - 1) {
-          copySize = size - FileSystem.BLOCK_SIZE * (position - startBlock);
+          copySize = size - addr;
         }
         let newId = blockId;
         if (blockId === 0) {

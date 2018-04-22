@@ -1,13 +1,5 @@
 import MemoryDiskDriver from '../../diskDriver/memory';
-
-function makeDataPayload(seed: number, size: number): Buffer {
-  let buffer = new ArrayBuffer(size);
-  let dataView = new DataView(buffer);
-  for (let i = 0; i + 3 < size; i += 4) {
-    dataView.setInt32(i, seed + (i >> 2), true);
-  }
-  return Buffer.from(buffer);
-}
+import makeDataPayload from '../../util/makeDataPayload';
 
 describe('MemoryDiskDriver', () => {
   let driver: MemoryDiskDriver;
