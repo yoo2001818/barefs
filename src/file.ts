@@ -203,6 +203,13 @@ export default class File {
     }
   }
   async truncate(size: number): Promise<void> {
-
+    if (size > this.length) throw new Error('Offset out of bounds');
+    let startBlock = Math.floor(size / FileSystem.BLOCK_SIZE) + 1;
+    let endBlock = Math.ceil(this.length / FileSystem.BLOCK_SIZE);
+    await traverseFileNodes(this, startBlock, endBlock,
+      async (position: number, blockId: number) => 0,
+    );
+    this.inode.length = size;
+    await this.fs.inodeManager.write(this.inode.id, this.inode);
   }
 }

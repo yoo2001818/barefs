@@ -22,6 +22,7 @@ export default class FileSystem {
       version: 1,
       bitmapId: 1,
       blockListId: 2,
+      rootId: 3,
     };
     await diskDriver.write(0, MetadataUtil.encode(metadata));
     // Populate bitmap node / file
@@ -40,6 +41,9 @@ export default class FileSystem {
     let blockListBlock = new Uint8Array(4096);
     blockListBlock.set([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7]);
     await diskDriver.write(8192, blockListBlock);
+    // Populate root node
+    let rootNode = INodeUtil.createEmpty();
+    await diskDriver.write(384, INodeUtil.encode(rootNode));
     return new FileSystem(diskDriver);
   }
   async init(): Promise<void> {
