@@ -21,12 +21,36 @@ async function traverseFileNodes(file: File,
   startBlock: number, endBlock: number,
   callback: (position: number, blockId: number) => Promise<number | void>,
 ): Promise<void> {
+  let sizeBlock = Math.ceil(file.length / FileSystem.BLOCK_SIZE);
   let position = startBlock;
   let stack: {
     type: string, depth?: number,
     offset: number, remainder?: number, block?: DataView,
-    blockId?: number, dirty?: boolean,
+    blockId?: number, dirty?: boolean, cleared?: boolean,
   }[] = [];
+  async function popStack() {
+    let top = stack.pop();
+    if (top.dirty && top.type === 'indirect') {
+      await file.fs.writeBlock(top.blockId, 0, createUint8Array(top.block));
+    }
+    if (top.type === 'indirect') { 
+      let parent = stack[stack.length - 1];
+      if (top.cleared &&
+        (top.offset >= BLOCK_ENTRIES || position === sizeBlock)
+      ) {
+        await file.fs.blockManager.setType(top.blockId, 0);
+        if (stack.length === 0) {
+          file.inode.jumps[top.depth] = 0;
+          file.inode.dirty = true;
+        } else {
+          parent.block.setUint32((parent.offset - 1) * 4, 0);
+          parent.dirty = true;
+        }
+      } else if (stack.length > 0) {
+        parent.cleared = false;
+      }
+    }
+  }
   while (position < endBlock) {
     if (stack.length === 0) {
       let pos = position;
@@ -54,6 +78,7 @@ async function traverseFileNodes(file: File,
             blockId,
             block: createDataView(await file.fs.readBlock(blockId)), 
             dirty: false,
+            cleared: pos === 0,
           });
           break;
         }
@@ -71,22 +96,23 @@ async function traverseFileNodes(file: File,
       position ++;
       top.offset ++;
       if (top.offset >= 12) {
-        stack.pop();
+        await popStack();
       }
     } else if (top.type === 'indirect') {
       if (top.offset >= BLOCK_ENTRIES) {
-        if (top.dirty) {
-          await file.fs.writeBlock(top.blockId, 0, createUint8Array(top.block));
-        }
-        stack.pop();
+        await popStack();
         continue;
       }
+      if (position >= endBlock) break;
       if (top.depth === 0) {
         let blockId = top.block.getUint32(top.offset * 4);
         let newId = await callback(position, blockId);
         if (typeof newId === 'number') {
+          if (newId !== 0) top.cleared = false;
           top.dirty = true;
           top.block.setUint32(top.offset * 4, newId);
+        } else {
+          if (blockId !== 0) top.cleared = false;
         }
         top.offset ++;
         position ++;
@@ -104,20 +130,18 @@ async function traverseFileNodes(file: File,
             : top.remainder / INDIRECT_SIZES[top.depth - 1] | 0,
           remainder: top.depth === 1 ? 0
             : top.remainder % INDIRECT_SIZES[top.depth - 1],
-          block: createDataView(await file.fs.readBlock(blockId)), 
+          blockId,
+          block: createDataView(await file.fs.readBlock(blockId)),
           dirty: false,
+          cleared: top.remainder === 0,
         });
         top.offset ++;
         top.remainder = 0;
       }
-      top.offset ++;
     }
   }
-  if (stack.length > 0) {
-    let top = stack[stack.length - 1];
-    if (top.type === 'indirect' && top.dirty) {
-      await file.fs.writeBlock(top.blockId, 0, createUint8Array(top.block));
-    }
+  while (stack.length > 0) {
+    await popStack();
   }
 }
 
@@ -207,7 +231,13 @@ export default class File {
     let startBlock = Math.floor(size / FileSystem.BLOCK_SIZE) + 1;
     let endBlock = Math.ceil(this.length / FileSystem.BLOCK_SIZE);
     await traverseFileNodes(this, startBlock, endBlock,
-      async (position: number, blockId: number) => 0,
+      async (position: number, blockId: number) => {
+        if (blockId !== 0) {
+          // Free the block id for other use
+          await this.fs.blockManager.setType(blockId, 0);
+        }
+        return 0;
+      },
     );
     this.inode.length = size;
     await this.fs.inodeManager.write(this.inode.id, this.inode);

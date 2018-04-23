@@ -31,4 +31,16 @@ describe('FileSystem', () => {
     expect(await file.read(13, 4192)).toEqual(largeChunk);
     expect(await file2.read(40, 50000)).toEqual(largeChunk2);
   });
+  it('should properly truncate file', async () => {
+    let driver = new MemoryDiskDriver();
+    let fs = await FileSystem.mkfs(driver);
+    await fs.init();
+    let file = await fs.createFile();
+    let largeChunk = makeDataPayload(0x5353, 5000000);
+    await file.write(0, largeChunk);
+    expect(file.length).toBe(5000000);
+    await file.truncate(0);
+    expect(file.length).toBe(0);
+    expect(await fs.blockManager.next()).toBe(4);
+  });
 });
