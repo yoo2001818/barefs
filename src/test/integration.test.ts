@@ -43,4 +43,16 @@ describe('FileSystem', () => {
     expect(file.length).toBe(0);
     expect(await fs.blockManager.next()).toBe(4);
   });
+  it('should properly remove file', async () => {
+    let driver = new MemoryDiskDriver();
+    let fs = await FileSystem.mkfs(driver);
+    await fs.init();
+    let file = await fs.createFile();
+    let file2 = await fs.createFile();
+    await file.write(0, Buffer.from('hey'));
+    expect(file.length).toBe(3)
+    await fs.unlinkFile(file);
+    expect((await fs.inodeManager.next()).id).toBe(file.id);
+    expect((await fs.inodeManager.next()).id).toBe(file2.id + 1);
+  });
 });

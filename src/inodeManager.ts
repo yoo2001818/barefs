@@ -81,4 +81,16 @@ export default class INodeManager {
     await this.blockListFile.write(12 * blockPos, createUint8Array(bitsetView));
     return inode;
   }
+  async unlink(inode: INode): Promise<void> {
+    let blockPos = Math.floor(inode.id / INODE_COUNT);
+    let bitsetView;
+    let bitset;
+    // TODO We should probably remove inode if inode is empty.
+    bitsetView = createDataView(
+      await this.blockListFile.read(12 * blockPos, 12))
+    bitset = bitsetView.getUint32(8);
+    bitset &= ~(1 << (inode.id % INODE_COUNT));
+    bitsetView.setUint32(8, bitset);
+    await this.blockListFile.write(12 * blockPos, createUint8Array(bitsetView));
+  }
 }

@@ -87,9 +87,12 @@ export default class FileSystem {
   }
   async unlink(inode: INode): Promise<void> {
     // Delete inode and mark on the bitmap
+    await this.inodeManager.unlink(inode);
   }
   async unlinkFile(file: File): Promise<void> {
     // Delete whole data node
+    await file.truncate(0);
+    await this.inodeManager.unlink(file.inode);
   }
   setType(id: number, value: number): Promise<void> {
     // Set bitmap data
