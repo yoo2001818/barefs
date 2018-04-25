@@ -3,10 +3,10 @@ import bossam from 'bossam';
 export default interface INode {
   id: number;
   length: number;
+  type: number;
   uid: number;
   gid: number;
   permission: number;
-  type: number;
   ctime: number;
   mtime: number;
   reserved: number;
@@ -18,10 +18,10 @@ export default interface INode {
 const namespace = bossam(`
   struct INode = Padded<{
     length: u64,
+    type: u16,
     uid: u16,
     gid: u16,
     permission: u16,
-    type: u16,
     ctime: u64,
     mtime: u64,
     reserved: u48,
@@ -45,10 +45,10 @@ export function createEmpty(): INode {
   return {
     id: 0,
     length: 0,
+    type: 0,
     uid: 0,
     gid: 0,
     permission: 0,
-    type: 0,
     ctime: 0,
     mtime: 0,
     reserved: 0,

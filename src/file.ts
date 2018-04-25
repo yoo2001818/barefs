@@ -161,6 +161,18 @@ export default class File {
   get length(): number {
     return this.inode.length;
   }
+  getMetadata(): INode {
+    return this.inode;
+  }
+  setMetadata(diff: INode): void {
+    this.inode = Object.assign({}, this.inode, diff);
+    this.inode.dirty = true;
+  }
+  async save(): Promise<void> {
+    if (!this.inode.dirty) return;
+    await this.fs.inodeManager.write(this.inode.id, this.inode);
+    this.inode.dirty = false;
+  }
   async read(
     offset: number, size: number, output?: Uint8Array,
   ): Promise<Uint8Array> {
