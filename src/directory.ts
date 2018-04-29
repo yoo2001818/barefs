@@ -25,11 +25,16 @@ export default class Directory extends File {
   
   async readdir(): Promise<DirectoryNode[]> {
     if (this.files == null) {
-      if (this.length === 0) {
-        this.files = [];
-      } else {
-        this.files = decode(await this.read(0, this.length));
-      }
+      this.reload();
+    }
+    return this.files;
+  }
+  
+  async reload(): Promise<DirectoryNode[]> {
+    if (this.length === 0) {
+      this.files = [];
+    } else {
+      this.files = decode(await this.read(0, this.length));
     }
     return this.files;
   }
