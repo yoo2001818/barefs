@@ -12,9 +12,11 @@ export default class FileSystem {
   metadata: Metadata;
   blockManager: BlockManager;
   inodeManager: INodeManager;
+  createFileObject: (inode: INode) => File;
 
   constructor(diskDriver: DiskDriver) {
     this.diskDriver = diskDriver;
+    this.createFileObject = inode => new File(this, inode);
   }
   static async mkfs(diskDriver: DiskDriver): Promise<FileSystem> {
     // Create new metadata and write inode block list / block bitmap
@@ -74,7 +76,7 @@ export default class FileSystem {
   async createFile(): Promise<File> {
     // Get free inode and wrap file
     let inode = await this.inodeManager.next();
-    return new File(this, inode);
+    return this.createFileObject(inode);
   }
   read(id: number): Promise<INode> {
     // Read inode from disk, or buffer (if in cache)
@@ -83,7 +85,7 @@ export default class FileSystem {
   async readFile(id: number): Promise<File> {
     // Read inode and wrap with file
     let inode = await this.inodeManager.read(id);
-    return new File(this, inode);
+    return this.createFileObject(inode);
   }
   async unlink(inode: INode): Promise<void> {
     // Delete inode and mark on the bitmap

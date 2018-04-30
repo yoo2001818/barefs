@@ -62,8 +62,10 @@ export default class Directory extends File {
     return this.fs.readFile(result.address);
   }
 
-  async sync(): Promise<void> {
-    if (this.dirty) return;
+  async save(): Promise<void> {
+    await super.save();
+    if (!this.dirty) return;
+    console.log(this.files);
     await this.write(0, encode(this.files));
     this.dirty = false;
   }
