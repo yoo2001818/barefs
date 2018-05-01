@@ -13,11 +13,11 @@ describe('Directory', () => {
     expect(file.id).toBe(3);
     let dir = new Directory(fs, (await fs.createFile()).inode);
     await dir.createFile('hello', file);
-    await dir.sync();
+    await dir.save();
     await dir.reload();
     expect((await dir.resolve('hello')).id).toBe(3);
     await dir.unlinkFile('hello');
-    await dir.sync();
+    await dir.save();
     await dir.reload();
     expect(await dir.resolve('hello')).toBe(null);
   });

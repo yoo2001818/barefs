@@ -18,7 +18,9 @@ export default class FileSystem {
     this.diskDriver = diskDriver;
     this.createFileObject = inode => new File(this, inode);
   }
-  static async mkfs(diskDriver: DiskDriver): Promise<FileSystem> {
+  static async mkfs(diskDriver: DiskDriver,
+    rootNode: INode = INodeUtil.createEmpty(),
+  ): Promise<FileSystem> {
     // Create new metadata and write inode block list / block bitmap
     let metadata: Metadata = {
       version: 1,
@@ -44,7 +46,6 @@ export default class FileSystem {
     blockListBlock.set([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7]);
     await diskDriver.write(8192, blockListBlock);
     // Populate root node
-    let rootNode = INodeUtil.createEmpty();
     await diskDriver.write(384, INodeUtil.encode(rootNode));
     return new FileSystem(diskDriver);
   }
@@ -73,9 +74,10 @@ export default class FileSystem {
     let address = id * FileSystem.BLOCK_SIZE + (position || 0);
     return this.diskDriver.write(address, buffer);
   }
-  async createFile(): Promise<File> {
+  async createFile(type: number = 0): Promise<File> {
     // Get free inode and wrap file
     let inode = await this.inodeManager.next();
+    inode.type = type;
     return this.createFileObject(inode);
   }
   read(id: number): Promise<INode> {
