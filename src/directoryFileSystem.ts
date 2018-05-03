@@ -36,8 +36,14 @@ export default class DirectoryFileSystem extends FileSystem {
     await super.close();
     this.rootNode.save();
   }
-  async resolvePath(path: string): Promise<File> {
-    let paths = splitPath(path);
+  async resolvePath(path: string | string[]): Promise<File> {
+    let paths;
+    if (Array.isArray(path)) {
+      paths = path;
+    } else {
+      paths = splitPath(path);
+    }
+    if (paths[0] === '') paths.shift();
     let node: File = this.rootNode;
     for (let slice of paths) {
       if (!(node instanceof Directory)) {
@@ -51,8 +57,17 @@ export default class DirectoryFileSystem extends FileSystem {
     }
     return node;
   }
-  async createFilePath(path: string, type: number): Promise<INode> {
-
+  async createFilePath(path: string, type: number): Promise<File> {
+    let paths = splitPath(path);
+    let fileName = paths.pop();
+    let directory = await this.resolvePath(paths);
+    if (!(directory instanceof Directory)) {
+      throw new Error('Cannot descend into file node');
+    }
+    let file = await this.createFile(type);
+    await directory.createFile(fileName, file);
+    await directory.save();
+    return file;
   }
   async createDirectoryPath(path: string): Promise<Directory> {
     let directory = await this.createFilePath(path, 1);
@@ -60,5 +75,28 @@ export default class DirectoryFileSystem extends FileSystem {
       throw new Error('Type 1 INode should be converted to Directory.');
     }
     return directory;
+  }
+  async unlinkPath(path: string): Promise<void> {
+    let paths = splitPath(path);
+    let fileName = paths.pop();
+    let directory = await this.resolvePath(paths);
+    if (!(directory instanceof Directory)) {
+      throw new Error('Cannot descend into file node');
+    }
+    let file = await directory.resolve(fileName);
+    if (file == null) {
+      throw new Error(fileName + ' is not a valid inode');
+    }
+    if (file instanceof Directory) {
+      await file.readdir();
+      if (file.files.length > 0) {
+        throw new Error('Cannot unlink non-empty directory');
+      }
+    }
+    await this.unlinkFile(file);
+    await directory.unlinkFile(fileName);
+    await directory.save();
+  }
+  async movePath(from: string, to: string): Promise<void> {
   }
 }
