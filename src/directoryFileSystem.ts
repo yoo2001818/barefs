@@ -57,17 +57,19 @@ export default class DirectoryFileSystem extends FileSystem {
     }
     return node;
   }
-  async createFilePath(path: string, type: number): Promise<File> {
+  async createFilePath(
+    path: string, type: number, file?: File,
+  ): Promise<File> {
     let paths = splitPath(path);
     let fileName = paths.pop();
     let directory = await this.resolvePath(paths);
     if (!(directory instanceof Directory)) {
       throw new Error('Cannot descend into file node');
     }
-    let file = await this.createFile(type);
-    await directory.createFile(fileName, file);
+    let targetFile = file || await this.createFile(type);
+    await directory.createFile(fileName, targetFile);
     await directory.save();
-    return file;
+    return targetFile;
   }
   async createDirectoryPath(path: string): Promise<Directory> {
     let directory = await this.createFilePath(path, 1);
@@ -76,7 +78,9 @@ export default class DirectoryFileSystem extends FileSystem {
     }
     return directory;
   }
-  async unlinkPath(path: string): Promise<void> {
+  async unlinkPath(
+    path: string, unlinkFile: boolean = true,
+  ): Promise<File | null> {
     let paths = splitPath(path);
     let fileName = paths.pop();
     let directory = await this.resolvePath(paths);
@@ -93,10 +97,16 @@ export default class DirectoryFileSystem extends FileSystem {
         throw new Error('Cannot unlink non-empty directory');
       }
     }
-    await this.unlinkFile(file);
+    if (unlinkFile) {
+      await this.unlinkFile(file);
+    }
     await directory.unlinkFile(fileName);
     await directory.save();
+    return unlinkFile ? null : file;
   }
-  async movePath(from: string, to: string): Promise<void> {
+  async movePath(from: string, to: string): Promise<File> {
+    let file = await this.unlinkPath(from, false);
+    if (file == null) throw new Error('Unknown file');
+    return this.createFilePath(to, 0, file);
   }
 }
