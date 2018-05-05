@@ -58,7 +58,7 @@ export default class DirectoryFileSystem extends FileSystem {
     return node;
   }
   async createFilePath(
-    path: string, type: number, file?: File,
+    path: string, type: number = 0, file?: File,
   ): Promise<File> {
     let paths = splitPath(path);
     let fileName = paths.pop();
