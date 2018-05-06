@@ -43,7 +43,7 @@ export default class FileSystem {
     blockListNode.pointers[0] = 2;
     await diskDriver.write(256, INodeUtil.encode(blockListNode));
     let blockListBlock = new Uint8Array(4096);
-    blockListBlock.set([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7]);
+    blockListBlock.set([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15]);
     await diskDriver.write(8192, blockListBlock);
     // Populate root node
     await diskDriver.write(384, INodeUtil.encode(rootNode));

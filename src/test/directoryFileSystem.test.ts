@@ -13,8 +13,8 @@ describe('DirectoryFileSystem', () => {
   it('should handle creating / removing a file', async () => {
     let file = await fs.createFilePath('/hellowld.txt');
     await file.write(0, Buffer.from('Hello world', 'utf-8'));
-    expect(byteArrayToHex(await file.read(0, 13)))
-      .toEqual(byteArrayToHex(Buffer.from('Hello, world!')));
+    expect(byteArrayToHex(await file.read(0, 11)))
+      .toEqual(byteArrayToHex(Buffer.from('Hello world')));
     let file2 = await fs.createFilePath('/something._at');
     await file2.write(0, Buffer.from('Hey', 'utf-8'));
     expect(byteArrayToHex(await file2.read(0, 3)))

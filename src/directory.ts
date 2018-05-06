@@ -25,7 +25,7 @@ export default class Directory extends File {
   
   async readdir(): Promise<DirectoryNode[]> {
     if (this.files == null) {
-      this.reload();
+      await this.reload();
     }
     return this.files;
   }
@@ -65,7 +65,6 @@ export default class Directory extends File {
   async save(): Promise<void> {
     await super.save();
     if (!this.dirty) return;
-    console.log(this.files);
     await this.write(0, encode(this.files));
     this.dirty = false;
   }
