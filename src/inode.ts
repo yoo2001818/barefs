@@ -49,7 +49,7 @@ export function createEmpty(): INode {
     uid: 0,
     gid: 0,
     permission: 0,
-    ctime: 0,
+    ctime: Date.now(),
     mtime: 0,
     reserved: 0,
     pointers: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],

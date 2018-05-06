@@ -168,6 +168,20 @@ export default class File {
     this.inode = Object.assign({}, this.inode, diff);
     this.inode.dirty = true;
   }
+  chmod(mode: number): void {
+    this.inode.permission = mode;
+    this.inode.dirty = true;
+  }
+  chown(uid: number, gid: number): void {
+    this.inode.uid = uid;
+    this.inode.gid = gid;
+    this.inode.dirty = true;
+  }
+  utime(atime: number, ctime: number): void {
+    // Sadly no atime is available due to space constraint
+    this.inode.ctime = ctime;
+    this.inode.dirty = true;
+  }
   async save(): Promise<void> {
     if (!this.inode.dirty) return;
     await this.fs.inodeManager.write(this.inode.id, this.inode);
@@ -232,6 +246,7 @@ export default class File {
     );
     if (offset + input.length > this.inode.length) {
       this.inode.length = offset + input.length;
+      this.inode.mtime = Date.now();
       this.inode.dirty = true;
     }
     if (this.inode.dirty) {
