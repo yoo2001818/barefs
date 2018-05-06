@@ -23,6 +23,8 @@
   "devDependencies": {
     "@types/jest": "^22.2.2",
     "@types/node": "^9.6.4",
+    "fs-fuse": "0.0.0",
+    "fuse-bindings": "^2.11.2",
     "jest": "^22.4.3",
     "ts-jest": "^22.4.2",
     "ts-node": "^5.0.1",

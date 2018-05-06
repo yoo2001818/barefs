@@ -51,7 +51,7 @@ export default class DirectoryFileSystem extends FileSystem {
       }
       let result = await node.resolve(slice);
       if (result == null) {
-        throw new Error(slice + ' is not a valid inode');
+        throw new Error('ENOENT');
       }
       node = result;
     }
