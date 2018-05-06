@@ -177,9 +177,9 @@ export default class File {
     this.inode.gid = gid;
     this.inode.dirty = true;
   }
-  utime(atime: number, ctime: number): void {
+  utime(atime: number, mtime: number): void {
     // Sadly no atime is available due to space constraint
-    this.inode.ctime = ctime;
+    this.inode.mtime = mtime;
     this.inode.dirty = true;
   }
   async save(): Promise<void> {
