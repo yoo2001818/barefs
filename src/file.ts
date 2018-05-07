@@ -11,9 +11,8 @@ const INDIRECT_SIZES = [BLOCK_ENTRIES, BLOCK_ENTRIES_DOUBLE,
 
 async function resolveNode(file: File, block: number): Promise<number> {
   if (block !== 0) return block;
-  let nextId = await file.fs.blockManager.next();
+  let nextId = await file.fs.blockManager.next(3);
   await file.fs.writeBlock(nextId, 0, new Uint8Array(4096));
-  await file.fs.blockManager.setType(nextId, 3);
   return nextId;
 }
 
@@ -235,8 +234,7 @@ export default class File {
         }
         let newId = blockId;
         if (blockId === 0) {
-          newId = await this.fs.blockManager.next();
-          await this.fs.blockManager.setType(newId, 2);
+          newId = await this.fs.blockManager.next(2);
         }
         await this.fs.writeBlock(newId, startPos,
           input.subarray(addr, addr + copySize));

@@ -2,15 +2,20 @@ import fuse from 'fuse-bindings';
 
 import NodeFSWrapper from './fuseFSWrapper';
 import DirectoryFileSystem from './directoryFileSystem';
+import NodejsDiskDriver from './diskDriver/nodejs';
 import MemoryDiskDriver from './diskDriver/memory';
 
 (async () => {
   let memory = new MemoryDiskDriver();
+  /*
+  await memory.open();
+  if (memory.isNew) {
+    await DirectoryFileSystem.mkfs(memory);
+  }
+  */
   await DirectoryFileSystem.mkfs(memory);
   let fs = new DirectoryFileSystem(memory);
   await fs.init();
-  let file = await fs.createFilePath('/hellowld.txt');
-  await file.write(0, Buffer.from('Hello world', 'utf-8'));
   let wrapper = NodeFSWrapper(fs);
 
   let dir = process.argv[2];

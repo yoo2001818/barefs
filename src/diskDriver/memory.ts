@@ -1,7 +1,7 @@
 import DiskDriver from './interface';
 
 export default class MemoryDiskDriver implements DiskDriver {
-  static BLOCK_SIZE = 4096;
+  static BLOCK_SIZE = 1024 * 1024;
   buffers: Buffer[] = [];
   size: number = 0;
   async read(
@@ -9,6 +9,7 @@ export default class MemoryDiskDriver implements DiskDriver {
   ): Promise<Uint8Array> {
     let _output = output || Buffer.allocUnsafeSlow(size);
     if (position + size > this.size) {
+      console.log('ERROR', position, size, this.size);
       throw new Error('Memory disk out of bounds');
     }
     // Separate position and outputs to chunk

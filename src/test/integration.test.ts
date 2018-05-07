@@ -52,7 +52,7 @@ describe('FileSystem', () => {
     expect(file.length).toBe(5000000);
     await file.truncate(0);
     expect(file.length).toBe(0);
-    expect(await fs.blockManager.next()).toBe(4);
+    expect(await fs.blockManager.next(0)).toBe(4);
   });
   it('should properly remove file', async () => {
     let driver = new MemoryDiskDriver();

@@ -220,7 +220,6 @@ export class FuseFSWrapper {
       bytesRead?: number, buffer?: Uint8Array,
     ) => any,
   ) {
-    console.log('read', fd, length, position);
     try {
       let file = this.fdTable[fd];
       if (file == null) throw new Error('Unknown file descriptor');
@@ -241,7 +240,6 @@ export class FuseFSWrapper {
       bytesWritten?: number, buffer?: Uint8Array,
     ) => any,
   ) {
-    console.log('write', fd, length, position);
     try {
       let file = this.fdTable[fd];
       if (file == null) throw new Error('Unknown file descriptor');
