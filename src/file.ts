@@ -16,39 +16,48 @@ async function resolveNode(file: File, block: number): Promise<number> {
   return nextId;
 }
 
+type Stack = {
+  type: string, depth?: number,
+  offset: number, remainder?: number, block?: DataView,
+  blockId?: number, dirty?: boolean, cleared?: boolean,
+};
+
+async function popStack(file: File, position: number, stack: Stack[]) {
+  let sizeBlock = Math.ceil(file.length / FileSystem.BLOCK_SIZE);
+  let top = stack.pop();
+  if (top.dirty && top.type === 'indirect') {
+    await file.fs.writeBlock(top.blockId, 0, createUint8Array(top.block));
+  }
+  if (top.type === 'indirect') { 
+    let parent = stack[stack.length - 1];
+    if (top.cleared &&
+      (top.offset >= BLOCK_ENTRIES || position === sizeBlock)
+    ) {
+      await file.fs.blockManager.setType(top.blockId, 0);
+      if (stack.length === 0) {
+        file.inode.jumps[top.depth] = 0;
+        file.inode.dirty = true;
+      } else {
+        parent.block.setUint32((parent.offset - 1) * 4, 0);
+        parent.dirty = true;
+      }
+    } else if (stack.length > 0) {
+      parent.cleared = false;
+    }
+  }
+}
+
 async function traverseFileNodes(file: File,
   startBlock: number, endBlock: number,
   callback: (position: number, blockId: number) => Promise<number | void>,
 ): Promise<void> {
   let sizeBlock = Math.ceil(file.length / FileSystem.BLOCK_SIZE);
   let position = startBlock;
-  let stack: {
-    type: string, depth?: number,
-    offset: number, remainder?: number, block?: DataView,
-    blockId?: number, dirty?: boolean, cleared?: boolean,
-  }[] = [];
-  async function popStack() {
-    let top = stack.pop();
-    if (top.dirty && top.type === 'indirect') {
-      await file.fs.writeBlock(top.blockId, 0, createUint8Array(top.block));
-    }
-    if (top.type === 'indirect') { 
-      let parent = stack[stack.length - 1];
-      if (top.cleared &&
-        (top.offset >= BLOCK_ENTRIES || position === sizeBlock)
-      ) {
-        await file.fs.blockManager.setType(top.blockId, 0);
-        if (stack.length === 0) {
-          file.inode.jumps[top.depth] = 0;
-          file.inode.dirty = true;
-        } else {
-          parent.block.setUint32((parent.offset - 1) * 4, 0);
-          parent.dirty = true;
-        }
-      } else if (stack.length > 0) {
-        parent.cleared = false;
-      }
-    }
+  let stack: Stack[] = [];
+  if (file.lastPos === position) {
+    stack = file.lastStack;
+  } else {
+    await file.close();
   }
   while (position < endBlock) {
     if (stack.length === 0) {
@@ -95,11 +104,11 @@ async function traverseFileNodes(file: File,
       position ++;
       top.offset ++;
       if (top.offset >= 12) {
-        await popStack();
+        await popStack(file, position, stack);
       }
     } else if (top.type === 'indirect') {
       if (top.offset >= BLOCK_ENTRIES) {
-        await popStack();
+        await popStack(file, position, stack);
         continue;
       }
       if (position >= endBlock) break;
@@ -139,9 +148,8 @@ async function traverseFileNodes(file: File,
       }
     }
   }
-  while (stack.length > 0) {
-    await popStack();
-  }
+  file.lastPos = position;
+  file.lastStack = stack;
 }
 
 export default class File {
@@ -149,6 +157,8 @@ export default class File {
 
   fs: FileSystem;
   inode: INode;
+  lastPos: number = null;
+  lastStack: Stack[];
 
   constructor(fs: FileSystem, inode: INode) {
     this.fs = fs;
@@ -215,7 +225,7 @@ export default class File {
     return buffer;
   }
   async write(
-    offset: number, input: Uint8Array,
+    offset: number, input: Uint8Array, noSave: boolean = false,
   ): Promise<void> {
     let size = input.length;
     let startBlock = Math.floor(offset / FileSystem.BLOCK_SIZE);
@@ -250,6 +260,18 @@ export default class File {
     if (this.inode.dirty) {
       await this.fs.inodeManager.write(this.inode.id, this.inode);
       this.inode.dirty = false;
+    }
+    if (!noSave) {
+      await this.close();
+    }
+  }
+  async close(): Promise<void> {
+    if (this.lastStack != null) {
+      while (this.lastStack.length > 0) {
+        popStack(this, this.lastPos, this.lastStack);
+      }
+      this.lastPos = null;
+      this.lastStack = null;
     }
   }
   async truncate(size: number): Promise<void> {

@@ -245,7 +245,7 @@ export class FuseFSWrapper {
       if (file == null) throw new Error('Unknown file descriptor');
       let pos: number = position;
       if (position == null) pos = file.pos;
-      await file.file.write(pos, buffer);
+      await file.file.write(pos, buffer, true);
       callback(length, buffer);
     } catch (e) {
       console.log(e);
@@ -256,6 +256,7 @@ export class FuseFSWrapper {
     try {
       let file = this.fdTable[fd];
       if (file == null) throw new Error('Unknown file descriptor');
+      await file.file.close();
       await file.file.save();
       // this.fdTable.splice(fd, 1);
       callback(0);
