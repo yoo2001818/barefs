@@ -78,6 +78,7 @@ export default class FileSystem {
     // Get free inode and wrap file
     let inode = await this.inodeManager.next();
     inode.type = type;
+    inode.dirty = true;
     return this.createFileObject(inode);
   }
   read(id: number): Promise<INode> {

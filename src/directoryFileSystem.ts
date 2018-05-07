@@ -3,6 +3,7 @@ import DiskDriver from './diskDriver/interface';
 import Directory from './directory';
 import File from './file';
 import INode, * as INodeUtil from './inode';
+import FSError from './util/fsError';
 
 function splitPath(path: string): string[] {
   return path.split('/');
@@ -21,6 +22,7 @@ export default class DirectoryFileSystem extends FileSystem {
   static async mkfs(diskDriver: DiskDriver): Promise<DirectoryFileSystem> {
     let inode = INodeUtil.createEmpty();
     inode.type = 1;
+    inode.permission = 0o777;
     await super.mkfs(diskDriver, inode);
     return new DirectoryFileSystem(diskDriver);
   }
@@ -43,15 +45,15 @@ export default class DirectoryFileSystem extends FileSystem {
     } else {
       paths = splitPath(path);
     }
-    if (paths[0] === '') paths.shift();
+    paths = paths.filter(v => v !== '');
     let node: File = this.rootNode;
     for (let slice of paths) {
       if (!(node instanceof Directory)) {
-        throw new Error('Cannot descend into file node');
+        throw new FSError('ENOTDIR', 'Cannot descend into file node');
       }
       let result = await node.resolve(slice);
       if (result == null) {
-        throw new Error('ENOENT');
+        throw new FSError('ENOENT', 'No such file or directory');
       }
       node = result;
     }
@@ -64,7 +66,7 @@ export default class DirectoryFileSystem extends FileSystem {
     let fileName = paths.pop();
     let directory = await this.resolvePath(paths);
     if (!(directory instanceof Directory)) {
-      throw new Error('Cannot descend into file node');
+      throw new FSError('ENOTDIR', 'Cannot descend into file node');
     }
     let targetFile = file || await this.createFile(type);
     await directory.createFile(fileName, targetFile);
@@ -85,16 +87,16 @@ export default class DirectoryFileSystem extends FileSystem {
     let fileName = paths.pop();
     let directory = await this.resolvePath(paths);
     if (!(directory instanceof Directory)) {
-      throw new Error('Cannot descend into file node');
+      throw new Error('Type 1 INode should be converted to Directory.');
     }
     let file = await directory.resolve(fileName);
     if (file == null) {
-      throw new Error(fileName + ' is not a valid inode');
+      throw new FSError('ENOENT', 'No such file or directory');
     }
     if (file instanceof Directory) {
       await file.readdir();
       if (file.files.length > 0) {
-        throw new Error('Cannot unlink non-empty directory');
+        throw new FSError('ENOTEMPTY', 'Cannot unlink non-empty directory');
       }
     }
     if (unlinkFile) {

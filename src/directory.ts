@@ -63,9 +63,10 @@ export default class Directory extends File {
   }
 
   async save(): Promise<void> {
+    if (this.dirty) {
+      await this.write(0, encode(this.files));
+      this.dirty = false;
+    }
     await super.save();
-    if (!this.dirty) return;
-    await this.write(0, encode(this.files));
-    this.dirty = false;
   }
 }

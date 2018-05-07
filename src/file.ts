@@ -195,7 +195,7 @@ export default class File {
     }
     let startBlock = Math.floor(offset / FileSystem.BLOCK_SIZE);
     let endBlock = Math.ceil((offset + size) / FileSystem.BLOCK_SIZE);
-    let buffer = new Uint8Array(size);
+    let buffer = output || new Uint8Array(size);
     let addr = 0;
     await traverseFileNodes(this, startBlock, endBlock,
       async (position: number, blockId: number) => {
@@ -251,6 +251,7 @@ export default class File {
     }
     if (this.inode.dirty) {
       await this.fs.inodeManager.write(this.inode.id, this.inode);
+      this.inode.dirty = false;
     }
   }
   async truncate(size: number): Promise<void> {
