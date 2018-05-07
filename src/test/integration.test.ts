@@ -12,12 +12,12 @@ describe('FileSystem', () => {
     await file.write(0, Buffer.from('Hello, world!'));
     expect(file.length).toBe(13);
     // This might be changed
-    expect(file.id).toBe(3);
+    expect(file.id).toBe(4);
     let file2 = await fs.createFile();
     await file2.write(0, Buffer.from('Nope'));
     expect(file2.length).toBe(4);
     // This might be changed
-    expect(file2.id).toBe(4);
+    expect(file2.id).toBe(5);
     expect(byteArrayToHex(await file.read(0, 13)))
       .toEqual(byteArrayToHex(Buffer.from('Hello, world!')));
     expect(byteArrayToHex(await file2.read(0, 4)))
@@ -30,6 +30,17 @@ describe('FileSystem', () => {
     expect(file2.length).toBe(40 + 50000);
     expect(await file.read(13, 4192)).toEqual(largeChunk);
     expect(await file2.read(40, 50000)).toEqual(largeChunk2);
+  });
+  it('should start in the middle', async () => {
+    let driver = new MemoryDiskDriver();
+    let fs = await FileSystem.mkfs(driver);
+    await fs.init();
+    let file = await fs.createFile();
+    let largeChunk = makeDataPayload(0x5353, 8192);
+    await file.write(0, largeChunk.subarray(0, 4096));
+    await file.write(4096, largeChunk.subarray(4096));
+    expect(file.length).toBe(8192);
+    expect(await file.read(0, 8192)).toEqual(largeChunk);
   });
   it('should properly truncate file', async () => {
     let driver = new MemoryDiskDriver();

@@ -202,7 +202,7 @@ export default class File {
         let startPos = 0;
         let copySize = FileSystem.BLOCK_SIZE;
         if (position === startBlock) {
-          startPos = position + offset;
+          startPos = offset % FileSystem.BLOCK_SIZE;
           copySize = FileSystem.BLOCK_SIZE - startPos;
         }
         if (position === endBlock - 1) {
@@ -227,7 +227,7 @@ export default class File {
         let startPos = 0;
         let copySize = FileSystem.BLOCK_SIZE;
         if (position === startBlock) {
-          startPos = position + offset;
+          startPos = offset % FileSystem.BLOCK_SIZE;
           copySize = FileSystem.BLOCK_SIZE - startPos;
         }
         if (position === endBlock - 1) {
