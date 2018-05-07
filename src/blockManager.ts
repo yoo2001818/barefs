@@ -1,3 +1,5 @@
+import Heap from 'heap';
+
 import File from './file';
 import FileSystem from './fileSystem';
 
@@ -7,6 +9,8 @@ export default class BlockManager {
   fs: FileSystem;
   bitmapFile: File;
   preemptiveLock: boolean = false;
+  cache: Heap<number> = new Heap();
+  sweepPos: number = 0;
 
   constructor(fs: FileSystem) {
     this.fs = fs;
@@ -20,22 +24,30 @@ export default class BlockManager {
   }
   async setType(id: number, value: BlockType): Promise<void> {
     await this.bitmapFile.write(id, new Uint8Array([value]));
+    if (value === 0) this.cache.push(id);
   }
   async next(value: BlockType): Promise<number> {
-    // TODO Again, optimize it using cache....
     let nextId = null;
-    let position = 0;
-    while (position < this.bitmapFile.length) {
-      let block = await this.bitmapFile.read(position,
-        Math.min(4096, this.bitmapFile.length - position));
-      for (let i = 0; i < block.length; ++i) {
-        if (block[i] === 0) {
-          nextId = position + i;
-          break;
+    if (!this.cache.empty()) {
+      nextId = this.cache.pop();
+    } else {
+      let position = this.sweepPos;
+      while (position < this.bitmapFile.length) {
+        let block = await this.bitmapFile.read(position,
+          Math.min(4096, this.bitmapFile.length - position));
+        for (let i = 0; i < block.length; ++i) {
+          if (block[i] === 0) {
+            if (nextId != null) {
+              nextId = position + i;
+            } else {
+              this.cache.push(position + i);
+            }
+          }
         }
+        if (nextId != null) break;
+        position += 4096;
       }
-      if (nextId != null) break;
-      position += 4096;
+      this.sweepPos = position;
     }
     if (nextId == null) {
       nextId = this.bitmapFile.length;
@@ -47,8 +59,13 @@ export default class BlockManager {
     if (nextId + 4096 > this.bitmapFile.length && !this.preemptiveLock) {
       console.log('allocating', nextId, this.bitmapFile.length);
       this.preemptiveLock = true;
-      await this.bitmapFile.write(this.bitmapFile.length,
-        new Uint8Array(8192 - (this.bitmapFile.length) % 4096));
+      let pos = this.bitmapFile.length;
+      let size = 8192 - (pos % 4096);
+      await this.bitmapFile.write(pos, new Uint8Array(size));
+      for (let i = this.sweepPos; i < pos + size; ++i) {
+        this.cache.push(i);
+      }
+      this.sweepPos = this.bitmapFile.length;
       this.preemptiveLock = false;
     }
     return nextId;
