@@ -6,14 +6,12 @@ import NodejsDiskDriver from './diskDriver/nodejs';
 import MemoryDiskDriver from './diskDriver/memory';
 
 (async () => {
-  let memory = new MemoryDiskDriver();
-  /*
+  let memory = new NodejsDiskDriver('fs.bin');
   await memory.open();
   if (memory.isNew) {
     await DirectoryFileSystem.mkfs(memory);
   }
-  */
-  await DirectoryFileSystem.mkfs(memory);
+  // await DirectoryFileSystem.mkfs(memory);
   let fs = new DirectoryFileSystem(memory);
   await fs.init();
   let wrapper = NodeFSWrapper(fs);

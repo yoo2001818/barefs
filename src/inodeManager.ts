@@ -41,11 +41,11 @@ export default class INodeManager {
     // TODO Optimize it using cache....
     let position = 0;
     let found = false;
-    let result = this.blockListFile.length / (INODE_COUNT * 12);
+    let result = this.blockListFile.length / 12 * INODE_COUNT;
     while (position * 4096 < this.blockListFile.length) {
       let block = createDataView(await this.blockListFile.read(position * 4096,
         Math.min(4096, this.blockListFile.length - position * 4096)));
-      for (let i = 0; i < block.byteLength; i += 16) {
+      for (let i = 0; i < block.byteLength; i += 12) {
         let bitset = block.getUint32(i + 8) | 0;
         if (bitset !== (0xFFFFFFFF | 0)) {
           for (let j = 0; j < 32; ++j) {
@@ -78,6 +78,7 @@ export default class INodeManager {
     }
     bitset |= 1 << (inode.id % INODE_COUNT);
     bitsetView.setUint32(8, bitset);
+    console.log('AAAAAAA', 12 * blockPos, createUint8Array(bitsetView));
     await this.blockListFile.write(12 * blockPos, createUint8Array(bitsetView));
     return inode;
   }
