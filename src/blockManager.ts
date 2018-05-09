@@ -38,7 +38,7 @@ export default class BlockManager {
           Math.min(4096, this.bitmapFile.length - position));
         for (let i = 0; i < block.length; ++i) {
           if (block[i] === 0) {
-            if (nextId != null) {
+            if (nextId == null) {
               nextId = position + i;
             } else {
               this.cache.push(position + i);
