@@ -32,6 +32,7 @@ export default class BlockManager {
       nextId = this.cache.pop();
     } else {
       let position = this.sweepPos;
+      let blockSize = Math.floor(this.bitmapFile.length / 4096) * 4096;
       while (position < this.bitmapFile.length) {
         let block = await this.bitmapFile.read(position,
           Math.min(4096, this.bitmapFile.length - position));
@@ -47,7 +48,7 @@ export default class BlockManager {
         if (nextId != null) break;
         position += 4096;
       }
-      this.sweepPos = position;
+      this.sweepPos = Math.min(position, blockSize);
     }
     if (nextId == null) {
       nextId = this.bitmapFile.length;
@@ -62,10 +63,6 @@ export default class BlockManager {
       let pos = this.bitmapFile.length;
       let size = 8192 - (pos % 4096);
       await this.bitmapFile.write(pos, new Uint8Array(size));
-      for (let i = this.sweepPos; i < pos + size; ++i) {
-        this.cache.push(i);
-      }
-      this.sweepPos = this.bitmapFile.length;
       this.preemptiveLock = false;
     }
     return nextId;
